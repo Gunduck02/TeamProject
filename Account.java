@@ -58,4 +58,4 @@ public abstract class Account {
     public LocalDate getOpenDate() {
         return openDate;
     }
-}
+} //테스트 2
