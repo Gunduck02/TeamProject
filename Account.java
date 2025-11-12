@@ -9,6 +9,8 @@ public abstract class Account {
     protected double availableBalance;
     protected LocalDate openDate;
 
+    public Account() {}
+
     public Account(Customer owner, String accountNumber, String accountType, double initialDeposit) {
         this.owner = owner;
         this.accountNumber = accountNumber;
@@ -24,6 +26,7 @@ public abstract class Account {
             this.availableBalance += amount;
         } else {
             //아직 미작성
+            System.out.println("0보다 작은 돈을 입금할 수 없습니다.");
         }
     }
 
@@ -35,27 +38,27 @@ public abstract class Account {
         return owner;
     }
 
-    public void setOwner(Customer owner) {
+    public void setOwner(Customer owner) { //소유자 설정
         this.owner = owner;
     }
 
-    public String getAccountNumber() {
+    public String getAccountNumber() { //계좌번호
         return accountNumber;
     }
 
-    public String getAccountType() {
+    public String getAccountType() { //계좌유형
         return accountType;
     }
 
-    public double getTotalBalance() {
+    public double getTotalBalance() { //전체 잔액
         return totalBalance;
     }
 
-    public double getAvailableBalance() {
+    public double getAvailableBalance() { //사용 가능 잔액
         return availableBalance;
     }
 
-    public LocalDate getOpenDate() {
+    public LocalDate getOpenDate() { //개설일
         return openDate;
     }
 } //테스트 2
