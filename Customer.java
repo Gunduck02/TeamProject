@@ -9,7 +9,7 @@ public class Customer {
     private String address;
     private String phone;
     
-    private List<Account> accountList;
+    private List<Account> accountList; //고객은 여러 계좌 소유 가능함, 리스트로 관리
 
     public Customer(String name, String customerId, String password, String address, String phone) {
         this.name = name;

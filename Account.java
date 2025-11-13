@@ -30,9 +30,9 @@ public abstract class Account {
         }
     }
 
-    public abstract boolean withdraw(double amount); //void boolean 고민중              
+    public abstract void withdraw(double amount); //void boolean 고민중              
 
-    public abstract String display(); //나중에 당금계좌 저축계좌 구분해서 작성해야하
+    public abstract void display(); //나중에 당금계좌 저축계좌 구분해서 작성해야하
 
     public Customer getOwner() {
         return owner;
