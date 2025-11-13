@@ -41,8 +41,8 @@ public class SavingsAccount extends Account {
             System.out.println("출금 성공 : " + amount + "원이 출금되었습니다.");
             return;
         } else {
-            return;
             System.out.println("출금 실패: 잔액이 부족합니다.");
+            return;
         }
     }
 
