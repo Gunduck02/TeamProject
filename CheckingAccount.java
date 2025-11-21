@@ -64,12 +64,12 @@ public class CheckingAccount extends Account {
 
     @Override
     public void display() {
-        String linkedAccNum = (this.linkedSavings != null) ? this.linkedSavings.getAccountNumber() : "None";
+        String linkedAccountNum = (this.linkedSavings != null) ? this.linkedSavings.getAccountNumber() : "None";
         System.out.println("계좌 유형: 당좌 예금 계좌");
         System.out.println("소유자: " + this.owner.getName());
         System.out.println("계좌 번호: " + this.accountNumber);
         System.out.println("통장 잔액: " + this.totalBalance);
         System.out.println("이용 가능 잔액: " + this.availableBalance);
-        System.out.println("연결된 계좌: " + linkedAccNum);
+        System.out.println("연결된 계좌: " + linkedAccountNum);
     }
 }

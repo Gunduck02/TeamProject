@@ -88,4 +88,16 @@ public class Customer {
     public void setPassword(String password) { //비밀번호 변경
         this.password = password;
     }
+    public static void main(String[] args) { //테스트용 메인 메소드
+        Customer customer = new Customer("홍길동", "hong123", "password", "서울시 강남구", "010-1234-5678");
+        System.out.println("고객 이름: " + customer.getName());
+        
+        SavingsAccount savingsAccount = new SavingsAccount(customer, "abc2", 1000000, 2.5, 300000);
+        CheckingAccount checkingAccount = new CheckingAccount(customer, "abc1", 500000, savingsAccount);
+        customer.addAccount(checkingAccount);
+        customer.addAccount(savingsAccount);
+        checkingAccount.display();
+        savingsAccount.display();
+
+    }
 } //깃허브 테스트
