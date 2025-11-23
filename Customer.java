@@ -48,7 +48,9 @@ public class Customer {
         }
         return total;
     }
-
+    public String getPassword() { //비밀번호 반환
+        return this.password;
+    }
     public boolean checkPassword(String password) { //비밀번호 확인
         return this.password.equals(password);
     }
