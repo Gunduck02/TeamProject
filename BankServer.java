@@ -25,7 +25,10 @@ public class BankServer {
             }
         } catch (IOException e) {}
     }
-
+    
+    //public static synchronized void checkTotalBalance(){}
+    //미완성 메스더
+    
     // 입금 처리 (동기화)
     public static synchronized void processDeposit(String accountNum, double amount) {
         Account acc = accountMap.get(accountNum);
@@ -124,7 +127,7 @@ public class BankServer {
         // 초기 더미 데이터 생성
         if (!custFile.exists() || !accFile.exists()) {
             System.out.println("데이터 파일 없음 -> 초기 데이터 생성");
-            loadInitialData();
+            InitData();
             return;
         }
 
@@ -169,12 +172,12 @@ public class BankServer {
 
         } catch (Exception e) { 
             System.out.println("파일 로드 실패. 초기 데이터로 시작합니다.");
-            loadInitialData();
+            InitlData();
         }
     }
     
     // 초기 테스트용 데이터 생성
-    private static void loadInitialData() {
+    private static void InitData() {
         Customer user1 = new Customer("홍경택", "user1", "1234", "대전", "010-1111-2222");
         SavingsAccount savings = new SavingsAccount(user1, "2222", 50000, 5.0, 100000);
         CheckingAccount checking = new CheckingAccount(user1, "1111", 10000, savings);
@@ -250,7 +253,8 @@ public class BankServer {
                         Account acc = accountMap.get(infos[1]);
                         if(acc != null) out.println("BALANCE," + acc.getTotalBalance());
                         else out.println("계좌없음");
-                    }
+                    }//소유한 모든 계좌의 총액 확인
+                    //else if(cmd.equals(TOTAL_BALANCE)) {}
                     // 관리자 기능: 고객 추가
                     else if (cmd.equals("ADD_CUSTOMER")) {
                         Customer c = new Customer(infos[1], infos[2], infos[3], infos[4], infos[5]);
