@@ -127,7 +127,7 @@ public class BankServer {
         // 초기 더미 데이터 생성
         if (!custFile.exists() || !accFile.exists()) {
             System.out.println("데이터 파일 없음 -> 초기 데이터 생성");
-            InitData();
+            initData();
             return;
         }
 
@@ -172,12 +172,12 @@ public class BankServer {
 
         } catch (Exception e) { 
             System.out.println("파일 로드 실패. 초기 데이터로 시작합니다.");
-            InitlData();
+            initData();
         }
     }
     
     // 초기 테스트용 데이터 생성
-    private static void InitData() {
+    private static void initData() {
         Customer user1 = new Customer("홍경택", "user1", "1234", "대전", "010-1111-2222");
         SavingsAccount savings = new SavingsAccount(user1, "2222", 50000, 5.0, 100000);
         CheckingAccount checking = new CheckingAccount(user1, "1111", 10000, savings);
