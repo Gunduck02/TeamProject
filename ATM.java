@@ -44,8 +44,8 @@ public class ATM {
         cardLayout = new CardLayout();
         mainContainer = new JPanel(cardLayout);
 
-        createLoginPanel();
-        createAtmPanel();
+        LoginPanel();
+        AtmPanel();
 
         mainContainer.add(loginPanel, "LOGIN");
         mainContainer.add(atmPanel, "ATM");
@@ -75,7 +75,7 @@ public class ATM {
         }
     }
 
-    private void createLoginPanel() {
+    private void LoginPanel() {
         loginPanel = new JPanel(new GridLayout(4, 1, 10, 10));
         loginPanel.setBorder(BorderFactory.createEmptyBorder(50, 100, 50, 100));
 
@@ -97,7 +97,7 @@ public class ATM {
         loginPanel.add(btnLoginAction);
     }
 
-    private void createAtmPanel() {
+    private void AtmPanel() {
         atmPanel = new JPanel(new BorderLayout());
 
         transferButton = new JButton("계좌 이체");
