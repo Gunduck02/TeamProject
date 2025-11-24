@@ -31,11 +31,11 @@ public class ATM {
     private String currentUserId;
 
     public ATM() {
-        initializeGUI();
+        atmGUI();
         connectToServer();
     }
 
-    private void initializeGUI() {
+    private void atmGUI() {
         frame = new JFrame("CNU Bank ATM");
         frame.setSize(500, 400); 
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -279,3 +279,4 @@ public class ATM {
         new ATM();
     }
 }
+//
