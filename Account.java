@@ -61,4 +61,7 @@ public abstract class Account {
     public LocalDate getOpenDate() { //개설일
         return openDate;
     }
+    public void setOpenDate(LocalDate openDate) {
+    this.openDate = openDate;
+}
 } //테스트 2

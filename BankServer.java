@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.time.LocalDate;
 import java.util.*;
 
 public class BankServer {
@@ -15,8 +16,8 @@ public class BankServer {
     public static void main(String[] args) {
         loadAllData();
         
-        try (ServerSocket serverSocket = new ServerSocket(9000, 50, InetAddress.getByName("127.0.0.1"))) {
-            System.out.println("=== 은행 서버 가동 (포트: 9000) ===");
+        try (ServerSocket serverSocket = new ServerSocket(9000, 50)) {
+            System.out.println("=== 은행 서버 실행 (포트: 9000) ===");
             
             while (true) {
                 Socket clientSocket = serverSocket.accept();
@@ -98,7 +99,7 @@ public class BankServer {
                 if (a instanceof SavingsAccount) {
                     SavingsAccount sa = (SavingsAccount) a;
                     String line = "Savings," + sa.getAccountNumber() + "," + sa.getOwner().getCustomerId() + "," 
-                            + sa.getTotalBalance() + "," + sa.getInterestRate() + "," + sa.getMaxTransferAmountToChecking();
+                            + sa.getTotalBalance() + "," + sa.getInterestRate() + "," + sa.getMaxTransferAmountToChecking()+ "," + sa.getOpenDate();
                     accOut.println(line);
                 }
             }
@@ -108,7 +109,7 @@ public class BankServer {
                     CheckingAccount ca = (CheckingAccount) a;
                     String linkedId = (ca.getLinkedSavings() != null) ? ca.getLinkedSavings().getAccountNumber() : "null";
                     String line = "Checking," + ca.getAccountNumber() + "," + ca.getOwner().getCustomerId() + "," 
-                            + ca.getTotalBalance() + "," + linkedId;
+                            + ca.getTotalBalance() + "," + linkedId+ "," + ca.getOpenDate();
                     accOut.println(line);
                 }
             }
@@ -148,17 +149,23 @@ public class BankServer {
                 
                 if (owner != null) {
                     if (p[0].equals("Savings")) {
-                        // 포맷: Savings,계좌번호,ID,잔액,이자율,이체한도
+                        //Savings,계좌번호,ID,잔액,이자율,이체한도
                         SavingsAccount sa = new SavingsAccount(owner, p[1], Double.parseDouble(p[3]), Double.parseDouble(p[4]), Double.parseDouble(p[5]));
+                        if (p.length > 6) {
+                            sa.setOpenDate(LocalDate.parse(p[6])); 
+                        }
                         accountMap.put(p[1], sa);
                         owner.addAccount(sa);
                     } else if (p[0].equals("Checking")) {
-                        // 포맷: Checking,계좌번호,ID,잔액,연결계좌번호
+                        //Checking,계좌번호,ID,잔액,연결계좌번호
                         SavingsAccount linked = null;
                         if (!p[4].equals("null")) {
                             linked = (SavingsAccount) accountMap.get(p[4]);
                         }
                         CheckingAccount ca = new CheckingAccount(owner, p[1], Double.parseDouble(p[3]), linked);
+                        if (p.length > 5) { // Checking은 저장 항목 개수가 달라서 인덱스가 다름에 주의
+                            ca.setOpenDate(LocalDate.parse(p[5]));
+                        }
                         accountMap.put(p[1], ca);
                         owner.addAccount(ca);
                     }
@@ -221,7 +228,7 @@ public class BankServer {
                         String id = infos[1];
                         String pw = infos[2];
                         if (id.equals("admin") && pw.equals("admin")) {
-                            out.println("LOGIN_SUCCESS_MANAGER");
+                            out.println("매니저 로그인 성공");
                         } else if (customerMap.containsKey(id)) {
                             Customer c = customerMap.get(id);
                             if (!c.checkPassword(pw)) {
@@ -233,18 +240,64 @@ public class BankServer {
                             out.println("로그인 실패");
                         }
                     }
+                    else if (cmd.equals("BANK_TOTAL_ASSETS")) {
+                        double total = 0;
+                        for (Account a : accountMap.values()) {
+                            total += a.getTotalBalance();
+                        }
+                        out.println("BANK_TOTAL_ASSETS," + total);
+                    }
+                    else if (cmd.equals("ALL_CUSTOMERS")) {
+                        StringBuilder sb = new StringBuilder("ALL_CUSTOMERS");
+                        for (Customer c : customerMap.values()) {
+                            sb.append(",");
+                            sb.append(c.getCustomerId() + ":" + c.getName() + ":" + c.getPhone());
+                        }
+                        out.println(sb.toString());
+                    }
+                    else if (cmd.equals("ALL_ACCOUNTS")) {
+                        StringBuilder sb = new StringBuilder("ALL_ACCOUNTS");
+                        for (Account a : accountMap.values()) {
+                            sb.append(",");
+                            String type = (a instanceof SavingsAccount) ? "저축" : "당좌";
+                            sb.append(a.getAccountNumber() + ":" + a.getOwner().getCustomerId() + ":" + type + ":" + a.getTotalBalance()+","+a.getOpenDate());
+                        }
+                        out.println(sb.toString());
+                    }
                     else if (cmd.equals("DEPOSIT")) {
-                        processDeposit(infos[1], Double.parseDouble(infos[2]));
-                        out.println("입금 성공");
+                        String accNum = infos[1];
+                        String requestUserId = infos[3];
+                        Account acc = accountMap.get(accNum);
+                        if (acc != null && acc.getOwner().getCustomerId().equals(requestUserId)) {
+                            processDeposit(accNum, Double.parseDouble(infos[2]));
+                            out.println("입금 성공");
+                        } else {
+                            out.println("입금 실패(본인 계좌 아님 또는 계좌 없음)");
+                        }
                     }
                     else if (cmd.equals("WITHDRAW")) {
                         processWithdraw(infos[1], Double.parseDouble(infos[2]));
                         out.println("출금 성공");
                     }
                     else if (cmd.equals("TRANSFER")) {
-                        boolean res = processTransfer(infos[1], infos[2], Double.parseDouble(infos[3]));
-                        if(res) out.println("이체 성공");
-                        else out.println("이체 실패(잔액부족)");
+                        String fromAccNum = infos[1];
+                        String toAccNum = infos[2];
+                        double amount = Double.parseDouble(infos[3]);
+                        String requestUserId = infos[4]; 
+                        Account sendAcc = accountMap.get(fromAccNum);
+                        
+                        if (sendAcc == null) {
+                            out.println("보내시는 계좌가 존재하지 않습니다.");
+                        } 
+                        else if (!sendAcc.getOwner().getCustomerId().equals(requestUserId)) {
+                            out.println("본인의 계좌에서만 이체할 수 있습니다.");
+                        } 
+                        else {
+                            // 검증 통과 시 이체 진행
+                            boolean trs = processTransfer(fromAccNum, toAccNum, amount);
+                            if(trs) out.println("이체 성공");
+                            else out.println("이체 실패(잔액부족)");
+                        }
                     }
                     else if (cmd.equals("BALANCE")) {
                         Account acc = accountMap.get(infos[1]);
@@ -252,7 +305,7 @@ public class BankServer {
                         else out.println("계좌없음");
                     }//소유한 모든 계좌의 총액 확인
                     else if(cmd.equals("TOTAL_BALANCE")) {
-                        String userId = infos[1]; // 클라이언트가 보낸 ID
+                        String userId = infos[1]; 
                         Customer c = customerMap.get(userId);
     
                         if (c != null) {
@@ -272,7 +325,7 @@ public class BankServer {
                             StringBuilder sb = new StringBuilder("ACCOUNT_CHECK");
         
                             for (Account a : c.getAccountList()) {
-                                sb.append(","); // 계좌 구분자
+                                sb.append(","); 
             
                                 String type = (a instanceof SavingsAccount) ? "저축" : "당좌";
                                 sb.append(type)
@@ -283,7 +336,7 @@ public class BankServer {
                             }
                             out.println(sb.toString()); // 예: ALL_ACCOUNTS,저축:111:5000,당좌:222:1000
                         } else {
-                            out.println("ERROR,고객 정보 없음");
+                            out.println("고객 정보 없음");
                         }
                     }
                     // 관리자 기능: 고객 추가

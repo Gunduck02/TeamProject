@@ -57,7 +57,7 @@ public class ATM {
 
     private void connectToServer() {
         try {
-            socket = new Socket("127.0.0.1", 9000); 
+            socket = new Socket("192.168.56.1", 9000); 
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             System.out.println("서버 연결 성공");
@@ -240,7 +240,7 @@ public class ATM {
         String amount = JOptionPane.showInputDialog(frame, "입금액을 입력하세요:");
         if (amount == null) return;
 
-        String response = sendRequest("DEPOSIT," + accNum + "," + amount);
+        String response = sendRequest("DEPOSIT," + accNum + "," + amount+"," + currentUserId);
         
         if (response != null) {
             JOptionPane.showMessageDialog(frame, response);
@@ -267,7 +267,7 @@ public class ATM {
         String amount = JOptionPane.showInputDialog(frame, "이체할 금액:");
         if (amount == null) return;
 
-        String response = sendRequest("TRANSFER," + fromAcc + "," + toAcc + "," + amount);
+        String response = sendRequest("TRANSFER," + fromAcc + "," + toAcc + "," + amount + "," + currentUserId);
         
         if (response != null) {
             JOptionPane.showMessageDialog(frame, response);
@@ -321,4 +321,3 @@ public class ATM {
         new ATM();
     }
 }
-//
