@@ -203,13 +203,13 @@ public class BankManager {
     private void viewAllCustomers() {
         String response = sendRequest("ALL_CUSTOMERS");
         if (response != null && response.startsWith("ALL_CUSTOMERS")) {
-            String[] parts = response.split(",");
+            String[] parts = response.split("#");
             StringBuilder sb = new StringBuilder("=== 전체 고객 목록 ===\n\n");
             
             if (parts.length == 1) sb.append("등록된 고객이 없습니다.");
             else {
                 for (int i = 1; i < parts.length; i++) {
-                    String[] info = parts[i].split(":");
+                    String[] info = parts[i].split(",");
                     sb.append(i + ". [ID: " + info[0] + "] 이름: " + info[1] + ", Tel: " + info[2] + "\n");
                 }
             }
@@ -220,13 +220,13 @@ public class BankManager {
     private void viewAllAccounts() {
         String response = sendRequest("ALL_ACCOUNTS");
         if (response != null && response.startsWith("ALL_ACCOUNTS")) {
-            String[] parts = response.split(",");
+            String[] parts = response.split("#");
             StringBuilder sb = new StringBuilder("=== 전체 계좌 목록 ===\n\n");
 
             if (parts.length == 1) sb.append("개설된 계좌가 없습니다.");
             else {
                 for (int i = 1; i < parts.length; i++) {
-                    String[] info = parts[i].split(":");
+                    String[] info = parts[i].split(",");
                     sb.append(i + ". [" + info[2] + "] " + info[0] + " (소유자: " + info[1] + ")\n");
                     sb.append("    잔액: " + info[3] + "원\n");
                     sb.append("    개설일: " + info[4] + "\n");
@@ -253,11 +253,45 @@ public class BankManager {
     }
 
     private void createAccount() {
-
+        // ID 입력 받기
         String targetId = JOptionPane.showInputDialog(frame, "계좌를 개설할 고객 ID를 입력하세요:");
-        if(targetId == null) return;
-        
-        JOptionPane.showMessageDialog(frame, "기능 구현 중: ATM 클라이언트의 계좌 개설 로직을 참고하여 구현 필요");
+        if (targetId == null || targetId.trim().isEmpty()) return;
+
+        //계좌 종류 선택
+        String[] options = {"저축예금(Savings)", "당좌예금(Checking)"};
+        int choice = JOptionPane.showOptionDialog(frame, "개설할 계좌 종류를 선택하세요", "계좌 개설",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.QUESTION_MESSAGE, null, options, options[0]);
+
+        if (choice == -1) return;
+        String type = (choice == 0) ? "Savings" : "Checking";
+
+        //계좌 정보 입력
+        String newAccNum = JOptionPane.showInputDialog(frame, "새로 사용할 계좌번호를 입력하세요:");
+        if (newAccNum == null || newAccNum.trim().isEmpty()) return;
+
+        String balanceStr = JOptionPane.showInputDialog(frame, "초기 입금액을 입력하세요:");
+        if (balanceStr == null) return;
+
+        //서버 전송용 명령어 생성 (CMD, Type, OwnerID, AccNum, Balance)
+        String cmd = "ADD_ACCOUNT," + type + "," + targetId + "," + newAccNum + "," + balanceStr;
+
+        if (type.equals("Savings")) {
+            cmd += ",5.0"; // 기본 이자율 5.0%
+            JOptionPane.showMessageDialog(frame, "저축예금 이자율은 기본 5%로 설정됩니다.");
+        } else {
+            String linked = JOptionPane.showInputDialog(frame, "연결할 저축예금 계좌번호 (없으면 엔터):");
+            if (linked == null || linked.trim().isEmpty()) {
+                cmd += ",null";
+            } else {
+                cmd += "," + linked;
+            }
+        }
+
+        // 5. 서버 전송
+        String response = sendRequest(cmd);
+        if (response != null) {
+            JOptionPane.showMessageDialog(frame, response); // "계좌생성완료" 또는 에러메시지
+        }
     }
 
     private void addCustomer() {

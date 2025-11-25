@@ -250,29 +250,32 @@ public class BankServer {
                     else if (cmd.equals("ALL_CUSTOMERS")) {
                         StringBuilder sb = new StringBuilder("ALL_CUSTOMERS");
                         for (Customer c : customerMap.values()) {
-                            sb.append(",");
-                            sb.append(c.getCustomerId() + ":" + c.getName() + ":" + c.getPhone());
+                            sb.append("#");
+                            sb.append(c.getCustomerId() + "," + c.getName() + "," + c.getPhone());
                         }
                         out.println(sb.toString());
                     }
                     else if (cmd.equals("ALL_ACCOUNTS")) {
                         StringBuilder sb = new StringBuilder("ALL_ACCOUNTS");
                         for (Account a : accountMap.values()) {
-                            sb.append(",");
+                            sb.append("#");
                             String type = (a instanceof SavingsAccount) ? "저축" : "당좌";
-                            sb.append(a.getAccountNumber() + ":" + a.getOwner().getCustomerId() + ":" + type + ":" + a.getTotalBalance()+","+a.getOpenDate());
+                            sb.append(a.getAccountNumber() + "," + a.getOwner().getName() + "," + type + "," + a.getTotalBalance()+","+a.getOpenDate());
                         }
                         out.println(sb.toString());
                     }
                     else if (cmd.equals("DEPOSIT")) {
                         String accNum = infos[1];
+                        String amountStr = infos[2];
                         String requestUserId = infos[3];
                         Account acc = accountMap.get(accNum);
-                        if (acc != null && acc.getOwner().getCustomerId().equals(requestUserId)) {
-                            processDeposit(accNum, Double.parseDouble(infos[2]));
+
+                        // 관리자(admin)이거나, 계좌 소유주가 본인인 경우 허용
+                        if (acc != null && (requestUserId.equals("admin") || acc.getOwner().getCustomerId().equals(requestUserId))) {
+                            processDeposit(accNum, Double.parseDouble(amountStr));
                             out.println("입금 성공");
                         } else {
-                            out.println("입금 실패(본인 계좌 아님 또는 계좌 없음)");
+                            out.println("입금 실패(권한 없음 또는 계좌 없음)");
                         }
                     }
                     else if (cmd.equals("WITHDRAW")) {
@@ -329,9 +332,9 @@ public class BankServer {
             
                                 String type = (a instanceof SavingsAccount) ? "저축" : "당좌";
                                 sb.append(type)
-                                .append(":")
+                                .append(",")
                                 .append(a.getAccountNumber())
-                                .append(":")
+                                .append(",")
                                 .append(a.getTotalBalance());
                             }
                             out.println(sb.toString()); // 예: ALL_ACCOUNTS,저축:111:5000,당좌:222:1000
@@ -359,6 +362,35 @@ public class BankServer {
                             out.println("계좌생성완료");
                         } else {
                             out.println("고객ID없음");
+                        }
+                    }
+                    else if (cmd.equals("DELETE_CUSTOMER")) {
+                        String targetId = infos[1];
+                        Customer c = customerMap.get(targetId);
+                        if (c != null) {
+                            // 해당 고객의 모든 계좌 삭제 처리
+                            List<Account> userAccounts = new ArrayList<>(c.getAccountList());
+                            for(Account a : userAccounts) {
+                                accountMap.remove(a.getAccountNumber());
+                            }
+                            customerMap.remove(targetId);
+                            saveAllData(); // 파일 업데이트
+                            out.println("고객 및 관련 계좌 삭제 완료");
+                        } else {
+                            out.println("존재하지 않는 고객 ID입니다.");
+                        }
+                    }
+                    else if (cmd.equals("DELETE_ACCOUNT")) {
+                        String accNum = infos[2];
+                        Account acc = accountMap.get(accNum);
+                        if (acc != null) {
+                            Customer owner = acc.getOwner();
+                            owner.removeAccount(accNum); // 고객 객체 리스트에서 삭제
+                            accountMap.remove(accNum);   // 전체 맵에서 삭제
+                            saveAllData();
+                            out.println("계좌 삭제 완료");
+                        } else {
+                            out.println("존재하지 않는 계좌번호입니다.");
                         }
                     }
                 }
