@@ -26,9 +26,6 @@ public class BankServer {
         } catch (IOException e) {}
     }
     
-    //public static synchronized void checkTotalBalance(){}
-    //미완성 메스더
-    
     // 입금 처리 (동기화)
     public static synchronized void processDeposit(String accountNum, double amount) {
         Account acc = accountMap.get(accountNum);
@@ -254,12 +251,46 @@ public class BankServer {
                         if(acc != null) out.println("BALANCE," + acc.getTotalBalance());
                         else out.println("계좌없음");
                     }//소유한 모든 계좌의 총액 확인
-                    //else if(cmd.equals(TOTAL_BALANCE)) {}
+                    else if(cmd.equals("TOTAL_BALANCE")) {
+                        String userId = infos[1]; // 클라이언트가 보낸 ID
+                        Customer c = customerMap.get(userId);
+    
+                        if (c != null) {
+                            double total = c.getTotalBalance(); 
+                            out.println("TOTAL_BALANCE," + total);
+                        } else {
+                            out.println("고객 정보를 찾을 수 없습니다.");
+                        }
+                        
+                    }
+                    // 관리자 기능: 전체 계좌 조회
+                    else if (cmd.equals("ACCOUNT_CHECK")) {
+                        String userId = infos[1];
+                        Customer c = customerMap.get(userId);
+
+                        if (c != null) {
+                            StringBuilder sb = new StringBuilder("ACCOUNT_CHECK");
+        
+                            for (Account a : c.getAccountList()) {
+                                sb.append(","); // 계좌 구분자
+            
+                                String type = (a instanceof SavingsAccount) ? "저축" : "당좌";
+                                sb.append(type)
+                                .append(":")
+                                .append(a.getAccountNumber())
+                                .append(":")
+                                .append(a.getTotalBalance());
+                            }
+                            out.println(sb.toString()); // 예: ALL_ACCOUNTS,저축:111:5000,당좌:222:1000
+                        } else {
+                            out.println("ERROR,고객 정보 없음");
+                        }
+                    }
                     // 관리자 기능: 고객 추가
                     else if (cmd.equals("ADD_CUSTOMER")) {
                         Customer c = new Customer(infos[1], infos[2], infos[3], infos[4], infos[5]);
                         addCustomer(c);
-                        out.println("SUCCESS,고객생성완료");
+                        out.println("고객생성완료");
                     }
                     // 관리자 기능: 계좌 추가
                     else if (cmd.equals("ADD_ACCOUNT")) {

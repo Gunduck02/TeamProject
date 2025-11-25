@@ -25,6 +25,7 @@ public class ATM {
     private JButton createAccountButton;
     private JButton exitButton;
     private JButton logoutButton;
+    private JButton balanceButton;
     private JLabel welcomelabel;
     private JLabel imageLabel;
 
@@ -107,6 +108,7 @@ public class ATM {
         createAccountButton = new JButton("계좌 개설"); 
         exitButton = new JButton("종료");
         logoutButton = new JButton("로그아웃");
+        balanceButton = new JButton("잔액 조회");
         welcomelabel = new JLabel("CNU BANK ATM 서비스", SwingConstants.CENTER);
         welcomelabel.setFont(new Font("고딕", Font.BOLD, 15));
 
@@ -117,6 +119,7 @@ public class ATM {
         createAccountButton.addActionListener(e -> createAccount()); 
         exitButton.addActionListener(e -> System.exit(0));
         logoutButton.addActionListener(e -> processLogout());
+        balanceButton.addActionListener(e -> checkTotalBalance());
 
         JPanel pL = new JPanel(new GridLayout(4, 1, 5, 5));
         pL.add(displayAccountsButton);
@@ -127,7 +130,7 @@ public class ATM {
         JPanel pR = new JPanel(new GridLayout(4, 1, 5, 5)); 
         pR.add(depositButton);
         pR.add(withdrawButton);
-        pR.add(new JLabel("")); 
+        pR.add(balanceButton); 
         pR.add(exitButton);
 
         JPanel pC = new JPanel();
@@ -214,6 +217,21 @@ public class ATM {
             }
         }
     }
+    private void checkTotalBalance() {
+    String response = sendRequest("TOTAL_BALANCE," + currentUserId);
+    if (response != null) {
+        String[] parts = response.split(",");
+        
+        if (parts[0].equals("TOTAL_BALANCE")) {
+            String amount = parts[1];
+            JOptionPane.showMessageDialog(frame, 
+                currentUserId + " 님의 총 자산은\n" + amount + "원 입니다.");
+        } else {
+            
+            JOptionPane.showMessageDialog(frame, "조회 실패" );
+        }
+        }
+    }
 
     private void deposit() {
         String accNum = JOptionPane.showInputDialog(frame, "입금할 계좌번호를 입력하세요:");
@@ -225,8 +243,7 @@ public class ATM {
         String response = sendRequest("DEPOSIT," + accNum + "," + amount);
         
         if (response != null) {
-            String msg = response.split(",")[1];
-            JOptionPane.showMessageDialog(frame, msg);
+            JOptionPane.showMessageDialog(frame, response);
         }
     }
 
@@ -238,8 +255,7 @@ public class ATM {
 
         String response = sendRequest("WITHDRAW," + accNum + "," + amount);
         if (response != null) {
-            String msg = response.split(",")[1];
-            JOptionPane.showMessageDialog(frame, msg);
+            JOptionPane.showMessageDialog(frame, response);
         }
     }
 
@@ -254,24 +270,50 @@ public class ATM {
         String response = sendRequest("TRANSFER," + fromAcc + "," + toAcc + "," + amount);
         
         if (response != null) {
-            String msg = response.split(",")[1];
-            JOptionPane.showMessageDialog(frame, msg);
+            JOptionPane.showMessageDialog(frame, response);
         }
     }
 
     private void displayAccounts() {
-        String accNum = JOptionPane.showInputDialog(frame, "조회할 계좌번호:");
-        if (accNum == null) return;
+    String response = sendRequest("ACCOUNT_CHECK," + currentUserId);
 
-        String response = sendRequest("BALANCE," + accNum);
-        
         if (response != null) {
-            String[] infos = response.split(",");
-            if (infos[0].equals("BALANCE")) {
-                JOptionPane.showMessageDialog(frame, "현재 잔액: " + infos[1] + "원");
-            } else {
-                JOptionPane.showMessageDialog(frame, infos[1]); 
-            }
+            String[] parts = response.split(",");
+
+            if (parts[0].equals("ACCOUNT_CHECK")) {
+                StringBuilder output = new StringBuilder();
+                output.append("=== [ " + currentUserId + " ] 님의 보유 계좌 목록 ===\n\n");
+
+                if (parts.length == 1) {
+                    output.append("보유하신 계좌가 없습니다.");
+                } else {
+                    for (int i = 1; i < parts.length; i++) {
+
+                        String[] accInfo = parts[i].split(":");
+                        
+                        String type = accInfo[0];
+                        String num = accInfo[1];
+                        String bal = accInfo[2];
+
+                        output.append((i) + ". [" + type + "] " + num + "\n");
+                        output.append("    잔액: " + bal + "원\n");
+                        output.append("--------------------------------\n");
+                    }
+                }
+                    JTextArea textArea = new JTextArea(output.toString());
+                    textArea.setEditable(false);
+                    textArea.setFont(new Font("맑은 고딕", Font.PLAIN, 14));
+                    
+                    JScrollPane scrollPane = new JScrollPane(textArea);
+                    scrollPane.setPreferredSize(new Dimension(350, 300));
+
+                    JOptionPane.showMessageDialog(frame, scrollPane, "계좌 조회 결과", JOptionPane.PLAIN_MESSAGE);
+                    
+                } else {
+                    JOptionPane.showMessageDialog(frame, "조회 실패");
+                }
+            
+            
         }
     }
 
