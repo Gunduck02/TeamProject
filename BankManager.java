@@ -58,7 +58,7 @@ public class BankManager {
 
     private void connectToServer() {
         try {
-            socket = new Socket("192.168.0.6", 9000); 
+            socket = new Socket("192.168.56.1", 9000); 
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             System.out.println("서버 연결 성공");

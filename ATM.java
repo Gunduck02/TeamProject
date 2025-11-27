@@ -27,7 +27,6 @@ public class ATM {
     private JButton logoutButton;
     private JButton balanceButton;
     private JLabel welcomelabel;
-    private JLabel imageLabel;
 
     private String currentUserId;
 
@@ -135,7 +134,7 @@ public class ATM {
 
         JPanel pC = new JPanel();
         try {
-            ImageIcon icon = new ImageIcon("충남대 로고.png");
+            ImageIcon icon = new ImageIcon("충남대 로고.jpg");
             if (icon.getIconWidth() > 0) pC.add(new JLabel(icon));
         } catch (Exception e) {}
 
@@ -302,7 +301,7 @@ public class ATM {
                 }
                     JTextArea textArea = new JTextArea(output.toString());
                     textArea.setEditable(false);
-                    textArea.setFont(new Font("맑은 고딕", Font.PLAIN, 14));
+                    textArea.setFont(new Font("고딕", Font.PLAIN, 14));
                     
                     JScrollPane scrollPane = new JScrollPane(textArea);
                     scrollPane.setPreferredSize(new Dimension(350, 300));

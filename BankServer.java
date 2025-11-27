@@ -2,8 +2,12 @@ import java.io.*;
 import java.net.*;
 import java.time.LocalDate;
 import java.util.*;
+import java.awt.*;       
+import javax.swing.*;    
 
 public class BankServer {
+
+    static int count = 0;
 
     // 데이터 관리용 맵
     private static Map<String, Customer> customerMap = new HashMap<>();
@@ -13,16 +17,65 @@ public class BankServer {
     private static final String FILE_CUSTOMER = "customers.txt";
     private static final String FILE_ACCOUNT = "accounts.txt";
 
+    private static JFrame frame;
+    private static JTextArea logArea; 
+
+    private static void severGui(){
+        frame = new JFrame("CNU Bank Server Monitor");
+        frame.setSize(600, 500);
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        frame.setLayout(new BorderLayout());
+
+        JPanel top = new JPanel() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                super.paintComponent(g);
+                g.setFont(new Font("고딕", Font.BOLD, 20));
+                g.drawString("현재 접속자 수: " + count + "명", 20, 35);
+            }
+        };
+        
+        top.setPreferredSize(new Dimension(600, 60));
+        top.setBackground(new Color(230, 230, 250));
+        
+        logArea = new JTextArea();
+        logArea.setEditable(false); 
+        logArea.setFont(new Font("고딕", Font.PLAIN, 14));
+        JScrollPane scrollPane = new JScrollPane(logArea);
+        
+        frame.add(top, BorderLayout.NORTH);
+        frame.add(scrollPane, BorderLayout.CENTER);
+
+        frame.setVisible(true);
+    }
+
+    public static void log(String msg) {
+        String time = java.time.LocalTime.now().toString().substring(0, 8); 
+        logArea.append("[" + time + "] " + msg + "\n"); 
+        try {
+            logArea.setCaretPosition(logArea.getDocument().getLength()); 
+        } catch (Exception e) {}
+    }
+
     public static void main(String[] args) {
         loadAllData();
+        severGui(); 
         
         try (ServerSocket serverSocket = new ServerSocket(9000, 50)) {
             System.out.println("=== 은행 서버 실행 (포트: 9000) ===");
+            log("=== 은행 서버 실행 (포트: 9000) ==="); 
             
             while (true) {
                 Socket clientSocket = serverSocket.accept();
                  Work work = new  Work(clientSocket);
                 new Thread(work).start();
+                
+                count++;
+                frame.repaint(); // 화면 전체 다시 그리기
+                
+                System.out.println("클라이언트 접속: " + clientSocket.getInetAddress());
+                System.out.println("현재 접속자 수: " + count);
+                log("새로운 클라이언트 접속: " + clientSocket.getInetAddress()); 
             }
         } catch (IOException e) {}
     }
@@ -33,6 +86,7 @@ public class BankServer {
         if (acc != null) {
             acc.deposit(amount);
             saveAllData(); // 변경사항 파일 저장
+            log("[입금] " + acc.getOwner().getName() + "님이 " + (int)amount + "원 입금 (계좌:" + accountNum + ")");
         }
     }
 
@@ -42,6 +96,7 @@ public class BankServer {
         if (acc != null) {
             acc.withdraw(amount);
             saveAllData();
+            log("[출금] " + acc.getOwner().getName() + "님이 " + (int)amount + "원 출금 (계좌:" + accountNum + ")");
         }
     }
 
@@ -61,6 +116,7 @@ public class BankServer {
         if (afterBal < beforeBal) {
             receiver.deposit(amount);
             saveAllData();
+            log("[이체] " + sender.getOwner().getName() + " -> " + receiver.getOwner().getName() + " (" + (int)amount + "원)");
             return true;
         }
         return false;
@@ -70,6 +126,7 @@ public class BankServer {
     public static synchronized void addCustomer(Customer c) {
         customerMap.put(c.getCustomerId(), c);
         saveAllData();
+        log("[관리자] 신규 고객 등록: " + c.getName()); 
     }
 
     // 계좌 추가
@@ -77,6 +134,7 @@ public class BankServer {
         accountMap.put(a.getAccountNumber(), a);
         a.getOwner().addAccount(a); // 고객 객체에도 계좌 정보 추가
         saveAllData();
+        log("[관리자] 신규 계좌 개설: " + a.getAccountNumber() + " (" + a.getOwner().getName() + ")"); 
     }
 
     // 모든 데이터를 파일에 저장
@@ -199,6 +257,7 @@ public class BankServer {
         private Socket socket;
         private BufferedReader in;
         private PrintWriter out;
+        private String connectedUserId = null; // 현재 접속자 ID 저장 (로그용)
 
         public  Work(Socket socket) { this.socket = socket; }
 
@@ -208,8 +267,6 @@ public class BankServer {
         //infos가 클라이언트의 요청을 파싱한 배열, infos[0]은 명령어, 그 뒤로는 매개변수들
         //서버는 행동 수행 후 결과를 문자열로 클라이언트에 응답 
         //이런 로직으로 구성했습니다.
-        //아직 매니저 관련 GUI는 구현 전이라 매니저 로그인 요청이 오면 그냥 성공으로 응답하게 해놨습니다.
-        //전체 계좌 조회 기능과, 내 계좌 총액 확인 기능, 고객 추가 기능, 계좌 추가 기능은 매니저 GUI 구현 후에 작업 예정입니다.
 
         @Override
         public void run() {
@@ -229,15 +286,20 @@ public class BankServer {
                         String pw = infos[2];
                         if (id.equals("admin") && pw.equals("admin")) {
                             out.println("매니저 로그인 성공");
+                            log("[로그인] 관리자(Admin) 로그인"); 
                         } else if (customerMap.containsKey(id)) {
                             Customer c = customerMap.get(id);
                             if (!c.checkPassword(pw)) {
                                 out.println("로그인 실패");
+                                log("[로그인 실패] ID: " + id + " - 비밀번호 오류"); 
                                 continue;
                             }   
                             out.println("로그인 성공," + customerMap.get(id).getName());
+                            connectedUserId = id; // 접속자 기록
+                            log("[로그인] " + c.getName() + "(" + id + ") 로그인 성공"); 
                         } else {
                             out.println("로그인 실패");
+                            log("[로그인 실패] 존재하지 않는 ID 시도: " + id); 
                         }
                     }
                     else if (cmd.equals("BANK_TOTAL_ASSETS")) {
@@ -276,6 +338,7 @@ public class BankServer {
                             out.println("입금 성공");
                         } else {
                             out.println("입금 실패(권한 없음 또는 계좌 없음)");
+                            log("[입금 실패] 권한 없음. 요청자: " + requestUserId); 
                         }
                     }
                     else if (cmd.equals("WITHDRAW")) {
@@ -294,12 +357,16 @@ public class BankServer {
                         } 
                         else if (!sendAcc.getOwner().getCustomerId().equals(requestUserId)) {
                             out.println("본인의 계좌에서만 이체할 수 있습니다.");
+                            log("[이체 실패] 권한 없음. 요청자: " + requestUserId); 
                         } 
                         else {
                             // 검증 통과 시 이체 진행
                             boolean trs = processTransfer(fromAccNum, toAccNum, amount);
                             if(trs) out.println("이체 성공");
-                            else out.println("이체 실패(잔액부족)");
+                            else {
+                                out.println("이체 실패(잔액부족)");
+                                log("[이체 실패] 잔액 부족. 계좌: " + fromAccNum); 
+                            }
                         }
                     }
                     else if (cmd.equals("BALANCE")) {
@@ -332,9 +399,9 @@ public class BankServer {
             
                                 String type = (a instanceof SavingsAccount) ? "저축" : "당좌";
                                 sb.append(type)
-                                .append(",")
+                                .append(":")
                                 .append(a.getAccountNumber())
-                                .append(",")
+                                .append(":")
                                 .append(a.getTotalBalance());
                             }
                             out.println(sb.toString()); // 예: ALL_ACCOUNTS,저축:111:5000,당좌:222:1000
@@ -369,13 +436,14 @@ public class BankServer {
                         Customer c = customerMap.get(targetId);
                         if (c != null) {
                             // 해당 고객의 모든 계좌 삭제 처리
-                            List<Account> userAccounts = new ArrayList<>(c.getAccountList());
+                            ArrayList<Account> userAccounts = new ArrayList<>(c.getAccountList());
                             for(Account a : userAccounts) {
                                 accountMap.remove(a.getAccountNumber());
                             }
                             customerMap.remove(targetId);
                             saveAllData(); // 파일 업데이트
                             out.println("고객 및 관련 계좌 삭제 완료");
+                            log("[관리자] 고객 삭제 완료: " + targetId); 
                         } else {
                             out.println("존재하지 않는 고객 ID입니다.");
                         }
@@ -389,13 +457,21 @@ public class BankServer {
                             accountMap.remove(accNum);   // 전체 맵에서 삭제
                             saveAllData();
                             out.println("계좌 삭제 완료");
+                            log("[관리자] 계좌 삭제 완료: " + accNum); 
                         } else {
                             out.println("존재하지 않는 계좌번호입니다.");
                         }
                     }
                 }
             } catch (IOException e) { 
-                System.out.println("클라이언트 연결 종료"); 
+            } finally{
+                if(BankServer.count > 0) BankServer.count--;
+                frame.repaint(); // 접속 종료 시 repaint로 화면 갱신
+                System.out.println("클라이언트 접속 종료");
+                System.out.println("현재 접속자 수: " + BankServer.count);
+                
+                String byeUser = (connectedUserId != null) ? connectedUserId : "익명"; 
+                log("클라이언트 접속 종료 (" + byeUser + ")"); 
             }
         }
     }
