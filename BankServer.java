@@ -85,19 +85,37 @@ public class BankServer {
         Account acc = accountMap.get(accountNum);
         if (acc != null) {
             acc.deposit(amount);
+            acc.addLog("입금: +" + (int)amount + "원");
             saveAllData(); // 변경사항 파일 저장
             log("[입금] " + acc.getOwner().getName() + "님이 " + (int)amount + "원 입금 (계좌:" + accountNum + ")");
         }
     }
 
-    // 출금 처리 (동기화)
-    public static synchronized void processWithdraw(String accountNum, double amount) {
+    // [수정] 출금 처리 (반환형을 boolean으로 변경)
+    public static synchronized boolean processWithdraw(String accountNum, double amount) {
         Account acc = accountMap.get(accountNum);
+        
         if (acc != null) {
-            acc.withdraw(amount);
-            saveAllData();
-            log("[출금] " + acc.getOwner().getName() + "님이 " + (int)amount + "원 출금 (계좌:" + accountNum + ")");
+            // 1. 동결 계좌 체크
+            if (acc.isFrozen()) {
+                log("[차단됨] 동결된 계좌에서 출금 시도: " + accountNum + " (소유자: " + acc.getOwner().getName() + ")");
+                return false; // 실패 반환
+            }
+
+            // 2. 출금 시도 (한 번만 호출!)
+            boolean success = acc.withdraw(amount); 
+            
+            // 3. 결과 처리
+            if (success) {
+                saveAllData(); // 성공했을 때만 저장
+                log("[출금] " + acc.getOwner().getName() + "님이 " + (int)amount + "원 출금 (계좌:" + accountNum + ")");
+                return true; // 성공 반환
+            } else {
+                log("[출금 실패] 잔액 부족 또는 기타 사유로 출금 실패 (계좌:" + accountNum + ")");
+                return false; // 실패 반환
+            }
         }
+        return false; // 계좌가 없는 경우 실패
     }
 
     // 계좌 이체 처리 (동기화)
@@ -107,6 +125,11 @@ public class BankServer {
 
         if (sender == null || receiver == null) return false;
 
+        if (sender.isFrozen()) {
+            log("[차단됨] 동결된 계좌에서 이체 시도: " + fromAccNum + " (소유자: " + sender.getOwner().getName() + ")");
+            return false; 
+        }
+
         // 보내는 사람 출금 시도
         double beforeBal = sender.getTotalBalance();
         sender.withdraw(amount); 
@@ -115,6 +138,9 @@ public class BankServer {
         // 출금이 정상적으로 됐으면 받는 사람 입금
         if (afterBal < beforeBal) {
             receiver.deposit(amount);
+
+            sender.addLog("이체(보냄): -" + (int)amount + "원 (받는분:" + receiver.getOwner().getName() + ")");
+            receiver.addLog("이체(받음): +" + (int)amount + "원 (보낸분:" + sender.getOwner().getName() + ")");
             saveAllData();
             log("[이체] " + sender.getOwner().getName() + " -> " + receiver.getOwner().getName() + " (" + (int)amount + "원)");
             return true;
@@ -330,8 +356,13 @@ public class BankServer {
                         String accNum = infos[1];
                         String amountStr = infos[2];
                         String requestUserId = infos[3];
-                        Account acc = accountMap.get(accNum);
-
+                        
+                        double amount = Double.parseDouble(amountStr);    
+                        //  [수정] 금액이 0 이하인지 가장 먼저 체크 (오상룡)
+                    if (amount <= 0) {
+                        out.println("이체 실패: 이체 금액은 0보다 커야 합니다.");
+                        log("[입금 실패] 잘못된 입금 금액: " + amount + ". 요청자: " + requestUserId);}
+                    else { Account acc = accountMap.get(accNum);    
                         // 관리자(admin)이거나, 계좌 소유주가 본인인 경우 허용
                         if (acc != null && (requestUserId.equals("admin") || acc.getOwner().getCustomerId().equals(requestUserId))) {
                             processDeposit(accNum, Double.parseDouble(amountStr));
@@ -341,10 +372,32 @@ public class BankServer {
                             log("[입금 실패] 권한 없음. 요청자: " + requestUserId); 
                         }
                     }
+                }
+                    // [수정] 계좌 동결 출금 처리 부분(오상룡)
                     else if (cmd.equals("WITHDRAW")) {
-                        processWithdraw(infos[1], Double.parseDouble(infos[2]));
-                        out.println("출금 성공");
-                    }
+                    String accNum = infos[1];
+                    double amount = Double.parseDouble(infos[2]);
+                    Account acc = accountMap.get(accNum);
+
+                if (acc != null) {
+                    // [여기서 미리 체크해서 클라이언트에게 알려줌]
+                    if (acc.isFrozen()) {
+                        out.println("출금 실패: 보이스피싱 의심으로 동결된 계좌입니다. 은행에 문의하세요.");
+                    } else {
+                        boolean success = processWithdraw(accNum, amount);
+
+                        if (success) {
+                            out.println("출금 성공");
+                            
+                        } else {
+                            out.println("출금 실패: 잔액 부족 또는 기타 사유로 출금할 수 없습니다.");
+                        }
+                      }
+                    } 
+                 else {
+                  out.println("출금 실패: 존재하지 않는 계좌입니다.");
+                }
+         }
                     else if (cmd.equals("TRANSFER")) {
                         String fromAccNum = infos[1];
                         String toAccNum = infos[2];
@@ -352,13 +405,22 @@ public class BankServer {
                         String requestUserId = infos[4]; 
                         Account sendAcc = accountMap.get(fromAccNum);
                         
-                        if (sendAcc == null) {
+                        // 이체금액 0<=amount 검사 (오상룡)
+                        if (amount <= 0) {
+                        out.println("이체 실패: 이체 금액은 0보다 커야 합니다.");
+                        log("[이체 실패] 잘못된 이체 금액: " + amount + ". 요청자: " + requestUserId);} 
+                
+                        else if (sendAcc == null) {
                             out.println("보내시는 계좌가 존재하지 않습니다.");
                         } 
                         else if (!sendAcc.getOwner().getCustomerId().equals(requestUserId)) {
                             out.println("본인의 계좌에서만 이체할 수 있습니다.");
                             log("[이체 실패] 권한 없음. 요청자: " + requestUserId); 
                         } 
+                        else if (sendAcc.isFrozen()) {
+                            out.println("이체 실패: 보이스피싱 의심으로 동결된 계좌입니다.");
+                            log("[차단됨] 동결된 계좌 이체 시도: " + fromAccNum);
+                        }
                         else {
                             // 검증 통과 시 이체 진행
                             boolean trs = processTransfer(fromAccNum, toAccNum, amount);
@@ -398,11 +460,16 @@ public class BankServer {
                                 sb.append(","); 
             
                                 String type = (a instanceof SavingsAccount) ? "저축" : "당좌";
+                               String logData = a.getLogString().replace("\n", "<br>"); // 로그 가져오기 & 줄바꿈(\n)을 특수문자 <br>로 변경 (통신 끊김 방지) (오상룡)
+
+                                // 데이터 조립: [타입 : 계좌번호 : 잔액 : 로그내역]
                                 sb.append(type)
-                                .append(":")
-                                .append(a.getAccountNumber())
-                                .append(":")
-                                .append(a.getTotalBalance());
+                                  .append(":")
+                                  .append(a.getAccountNumber())
+                                  .append(":")
+                                  .append(a.getTotalBalance())
+                                  .append(":") // 구분자 추가
+                                  .append(logData); // 로그 데이터 추가
                             }
                             out.println(sb.toString()); // 예: ALL_ACCOUNTS,저축:111:5000,당좌:222:1000
                         } else {
@@ -462,6 +529,26 @@ public class BankServer {
                             out.println("존재하지 않는 계좌번호입니다.");
                         }
                     }
+
+
+                    else if (cmd.equals("TOGGLE_FREEZE")) {
+                        String accNum = infos[1]; // 동결할 계좌번호
+                        Account acc = accountMap.get(accNum);
+
+                        if (acc != null) {
+                        // 상태 반전 (동결 -> 해제, 해제 -> 동결)
+                            boolean newState = !acc.isFrozen();
+                            acc.setFrozen(newState);
+        
+                            saveAllData(); 
+        
+                            String status = newState ? "동결(Freeze)" : "정상(Active)";
+                            out.println("계좌 상태 변경 완료: " + status);
+                            log("[관리자] 계좌 상태 변경 (" + accNum + ") -> " + status);
+                        } else {
+                            out.println("존재하지 않는 계좌입니다.");
+                        }
+                    }                       
                 }
             } catch (IOException e) { 
             } finally{

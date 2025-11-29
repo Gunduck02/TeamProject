@@ -56,7 +56,7 @@ public class ATM {
 
     private void connectToServer() {
         try {
-            socket = new Socket("192.168.56.1", 9000); 
+            socket = new Socket("localhost", 9000);  // ip주소 하드코딩하면 실행안되서 localhost로 변경함(오상룡)
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             System.out.println("서버 연결 성공");
@@ -232,7 +232,7 @@ public class ATM {
         }
     }
 
-    private void deposit() {
+    private void deposit() { // 취소버튼(뒤로가기 x, 팝업창 끄기 O)(오상룡)
         String accNum = JOptionPane.showInputDialog(frame, "입금할 계좌번호를 입력하세요:");
         if (accNum == null) return;
         
@@ -260,11 +260,17 @@ public class ATM {
 
     private void transfer() {
         String fromAcc = JOptionPane.showInputDialog(frame, "내 출금 계좌번호:");
-        if (fromAcc == null) return;
+        if (fromAcc == null || fromAcc.trim().isEmpty()) {
+            return; 
+        }
         String toAcc = JOptionPane.showInputDialog(frame, "받을 분의 계좌번호:");
-        if (toAcc == null) return;
+        if (toAcc == null || toAcc.trim().isEmpty()) {
+            return; 
+        }
         String amount = JOptionPane.showInputDialog(frame, "이체할 금액:");
-        if (amount == null) return;
+        if (amount == null || amount.trim().isEmpty()) {
+            return; 
+        }   
 
         String response = sendRequest("TRANSFER," + fromAcc + "," + toAcc + "," + amount + "," + currentUserId);
         
@@ -273,48 +279,55 @@ public class ATM {
         }
     }
 
-    private void displayAccounts() {
+    private void displayAccounts() { //[수정] 계좌 및 거래내역 조회 (오상룡)
     String response = sendRequest("ACCOUNT_CHECK," + currentUserId);
 
-        if (response != null) {
-            String[] parts = response.split(",");
+    if (response != null) {
+        String[] parts = response.split(","); // 계좌별 분리
 
-            if (parts[0].equals("ACCOUNT_CHECK")) {
-                StringBuilder output = new StringBuilder();
-                output.append("=== [ " + currentUserId + " ] 님의 보유 계좌 목록 ===\n\n");
+        if (parts[0].equals("ACCOUNT_CHECK")) {
+            StringBuilder output = new StringBuilder();
+            // 상단에 조회 시간 표시
+            String now = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            output.append("=== [ 조회 시간: " + now + " ] ===\n");
+            output.append("=== [ " + currentUserId + " ] 님의 계좌 및 거래 내역 ===\n\n");
 
-                if (parts.length == 1) {
-                    output.append("보유하신 계좌가 없습니다.");
-                } else {
-                    for (int i = 1; i < parts.length; i++) {
-
-                        String[] accInfo = parts[i].split(":");
-                        
-                        String type = accInfo[0];
-                        String num = accInfo[1];
-                        String bal = accInfo[2];
-
-                        output.append((i) + ". [" + type + "] " + num + "\n");
-                        output.append("    잔액: " + bal + "원\n");
-                        output.append("--------------------------------\n");
-                    }
-                }
-                    JTextArea textArea = new JTextArea(output.toString());
-                    textArea.setEditable(false);
-                    textArea.setFont(new Font("고딕", Font.PLAIN, 14));
+            if (parts.length == 1) {
+                output.append("보유하신 계좌가 없습니다.");
+            } else {
+                for (int i = 1; i < parts.length; i++) {
                     
-                    JScrollPane scrollPane = new JScrollPane(textArea);
-                    scrollPane.setPreferredSize(new Dimension(350, 300));
-
-                    JOptionPane.showMessageDialog(frame, scrollPane, "계좌 조회 결과", JOptionPane.PLAIN_MESSAGE);
+                    String[] accInfo = parts[i].split(":", 4);
                     
-                } else {
-                    JOptionPane.showMessageDialog(frame, "조회 실패");
+                    String type = accInfo[0];
+                    String num = accInfo[1];
+                    String bal = accInfo[2];
+                    // <br>로 온 줄바꿈을 다시 진짜 엔터(\n)로 복구
+                    String logs = accInfo[3].replace("<br>", "\n");
+
+                    output.append((i) + ". [" + type + "] " + num + "\n");
+                    output.append("    현재 잔액: " + bal + "원\n");
+                    output.append("    [최근 거래 내역]\n");
+                    output.append(logs + "\n"); // 내역 출력
+                    output.append("--------------------------------------------------\n\n");
                 }
+            }
             
+            JTextArea textArea = new JTextArea(output.toString());
+            textArea.setEditable(false);
+            textArea.setFont(new Font("고딕", Font.PLAIN, 13));
             
+            JScrollPane scrollPane = new JScrollPane(textArea);
+            scrollPane.setPreferredSize(new Dimension(450, 500)); 
+
+            JOptionPane.showMessageDialog(frame, scrollPane, "계좌 통합 조회", JOptionPane.PLAIN_MESSAGE);
+            
+        } else {
+            JOptionPane.showMessageDialog(frame, "조회 실패");
         }
     }
+}
+
 
     public static void main(String[] args) {
         new ATM();

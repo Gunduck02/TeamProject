@@ -29,20 +29,21 @@ public class SavingsAccount extends Account {
 //이자율 적용에 관련 메소드 아직 구현 안함
 
     @Override
-    public void withdraw(double amount) {
+    public boolean withdraw(double amount) {
         if (amount <= 0) {
             System.out.println("출금 실패: 출금액은 0보다 커야합니다");
-            return;
+            return false;
         }
 
         if (this.availableBalance >= amount) {
             this.availableBalance -= amount;
             this.totalBalance -= amount;
+            this.addLog("출금: -" + (int)amount + "원");
             System.out.println("출금 성공 : " + amount + "원이 출금되었습니다.");
-            return;
+            return true;
         } else {
             System.out.println("출금 실패: 잔액이 부족합니다.");
-            return;
+            return false;
         }
     }
 

@@ -16,22 +16,23 @@ public class CheckingAccount extends Account {
     }
 
     @Override
-    public void withdraw(double amount) {
+    public boolean withdraw(double amount) {
         if (amount <= 0) {
             System.out.println("출금 실패: 출금액은 0보다 커야 합니다."); 
-            return;
+            return false;
         } //음수 출금 불가
 
         if (this.availableBalance >= amount) {
             this.availableBalance -= amount;
             this.totalBalance -= amount;
+            this.addLog("출금: -" + (int)amount + "원");
             System.out.println("출금 성공: " + amount + "원이 출금되었습니다.");
-            return;
+            return true;
         }//당좌 잔액으로 출금 가능할 때
 
         if (this.linkedSavings == null) {
             System.out.println("출금 실패: 잔액이 부족하며, 연결된 저축계좌가 없습니다.");
-            return;
+            return false;
         }
 
         double needed = amount - this.availableBalance; //당좌 잔액으로 부족한 금액
@@ -41,16 +42,16 @@ public class CheckingAccount extends Account {
 
         if (needed > maxCanPull) {
             System.out.println("출금 실패: 필요한 금액(" + needed + ")이 자동이체 한도(" + maxCanPull + ")를 초과합니다.");
-            return;
+            return false;
         }
 
         if (needed > availableInSavings) {
             System.out.println("출금 실패: 연결된 저축계좌의 잔액(" + availableInSavings + ")이 부족합니다.");
-            return;
+            return false;
         } //이체한도보다 부족하거나 잔액 부족 시 출금 불가
         
-        this.linkedSavings.availableBalance -= needed;
-        this.linkedSavings.totalBalance -= needed;
+        this.linkedSavings.withdraw(needed); // 저축계좌에서 돈 빼기
+        this.linkedSavings.addLog("자동이체(당좌로): -" + (int)needed + "원"); // 로그
         
     
         this.availableBalance += needed; 
@@ -59,7 +60,8 @@ public class CheckingAccount extends Account {
         this.totalBalance -= amount;
 
         System.out.println("출금 성공: 저축계좌에서 " + needed + "원 이체 후 " + amount + "원 출금 완료.");
-        return;
+        addLog("출금(자동이체 포함): -" + (int)amount + "원"); // 로그
+        return true;
     }
 
     @Override

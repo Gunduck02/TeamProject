@@ -31,6 +31,7 @@ public class BankManager {
     private JLabel welcomelabel;
 
     private String currentUserId; // admin
+    private JButton freezeButton;
 
     public BankManager() {
         bankGui();
@@ -58,7 +59,7 @@ public class BankManager {
 
     private void connectToServer() {
         try {
-            socket = new Socket("192.168.56.1", 9000); 
+            socket = new Socket("localhost", 9000); // ip주소 하드코딩하면 실행안되서 localhost로 변경함(오상룡) 
             out = new PrintWriter(socket.getOutputStream(), true);
             in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
             System.out.println("서버 연결 성공");
@@ -118,6 +119,9 @@ public class BankManager {
         welcomelabel = new JLabel("CNU BANK 매니저 서비스", SwingConstants.CENTER);
         welcomelabel.setFont(new Font("고딕", Font.BOLD, 15));
 
+        freezeButton = new JButton("계좌 동결/해제"); // 버튼 생성
+        freezeButton.addActionListener(e -> toggleFreeze()); // 기능 연결
+
         // 리스너 연결
         delCusButton.addActionListener(e -> delCustomer());
         addCusButton.addActionListener(e -> addCustomer());
@@ -139,6 +143,7 @@ public class BankManager {
         pL.add(createAccButton); 
         pL.add(deleteAccButton);
         pL.add(depositButton);
+        pL.add(freezeButton);
 
         JPanel pR = new JPanel(new GridLayout(5, 1, 5, 5)); 
         pR.add(checkInfoButton); // 통합 조회 버튼
@@ -315,18 +320,36 @@ public class BankManager {
         }
     }
 
-    private void deposit() {
+    private void deposit() { //취소 버튼 기능(오상룡)
         String accNum = JOptionPane.showInputDialog(frame, "입금할 계좌번호:");
+    
+        if (accNum == null || accNum.trim().isEmpty()) {
+            return; 
+        }
+
         String amount = JOptionPane.showInputDialog(frame, "입금액:");
-        if (accNum != null && amount != null) {
-            String response = sendRequest("DEPOSIT," + accNum + "," + amount + ",admin");
+
+        if (amount == null || amount.trim().isEmpty()) {
+            return; 
+        }
+
+        String response = sendRequest("DEPOSIT," + accNum + "," + amount + "," + currentUserId);
+    
+        if (response != null) {
             JOptionPane.showMessageDialog(frame, response);
         }
     }
 
-    private void withdraw() {
+    private void withdraw() { //취소 버튼 기능(오상룡)
         String accNum = JOptionPane.showInputDialog(frame, "출금할 계좌번호:");
+
+        if (accNum == null || accNum.trim().isEmpty()) {
+            return; 
+        }
         String amount = JOptionPane.showInputDialog(frame, "출금액:");
+        if (amount == null || amount.trim().isEmpty()) {
+            return; 
+        }   
         if (accNum != null && amount != null) {
             String response = sendRequest("WITHDRAW," + accNum + "," + amount);
             JOptionPane.showMessageDialog(frame, response);
@@ -338,6 +361,18 @@ public class BankManager {
         JOptionPane.showMessageDialog(frame, "로그아웃 되었습니다.");
         cardLayout.show(mainContainer, "LOGIN");
     }
+
+    private void toggleFreeze() { //계좌 동결/해제 기능(오상룡)
+    String accNum = JOptionPane.showInputDialog(frame, "동결 또는 해제할 계좌번호를 입력하세요:");
+    if (accNum == null || accNum.trim().isEmpty()) return;
+
+    // 서버에 요청 전송
+    String response = sendRequest("TOGGLE_FREEZE," + accNum);
+
+    if (response != null) {
+        JOptionPane.showMessageDialog(frame, response);
+    }
+}
 
     public static void main(String[] args) {
         new BankManager();

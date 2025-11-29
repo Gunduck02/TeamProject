@@ -1,4 +1,6 @@
 import java.time.LocalDate;
+import java.util.*;
+import java.time.LocalTime;
 
 public abstract class Account {
 
@@ -8,6 +10,36 @@ public abstract class Account {
     protected double totalBalance;
     protected double availableBalance;
     protected LocalDate openDate;
+    private boolean isFrozen = false; 
+
+    // [추가] 보이스 피싱 대비 동결 상태 확인 및 설정 메서드(오상룡)
+    public boolean isFrozen() {
+        return isFrozen;
+    }
+
+    public void setFrozen(boolean frozen) {
+        this.isFrozen = frozen;
+    }
+    // 거래 기록 리스트(오상룡)
+    protected List<String> logs = new ArrayList<>();
+
+    // 기록을 추가하는 기능 (날짜+시간 포함)
+    public void addLog(String message) {
+        String date = LocalDate.now().toString(); 
+        String time = LocalTime.now().toString().substring(0, 8); // 초까지만
+        
+        // 예: [2025-11-30 14:30:05] 입금: +50000원
+        logs.add("[" + date + " " + time + "] " + message);
+    }
+
+    // 기록을 꺼내주는 기능  
+    public String getLogString() {
+        if (logs.isEmpty()) {
+            return "거래 내역이 없습니다.";
+        }
+        // 리스트에 있는 내역들을 줄바꿈(\n)으로 구분된 하나의 문자열로 반환
+        return String.join("\n", logs);
+    }
 
     public Account() {}
 
@@ -30,7 +62,7 @@ public abstract class Account {
         }
     }
 
-    public abstract void withdraw(double amount); //void boolean 고민중              
+    public abstract boolean withdraw(double amount); //void boolean 고민중--> boolean결정(오상룡)             
 
     public abstract void display(); //나중에 당금계좌 저축계좌 구분해서 작성해야하
 
