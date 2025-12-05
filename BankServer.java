@@ -1,8 +1,8 @@
+import java.awt.*;
 import java.io.*;
 import java.net.*;
 import java.time.LocalDate;
 import java.util.*;
-import java.awt.*;       
 import javax.swing.*;    
 
 public class BankServer {
@@ -486,18 +486,24 @@ public class BankServer {
                     else if (cmd.equals("ADD_ACCOUNT")) {
                         String type = infos[1];
                         Customer owner = customerMap.get(infos[2]);
-                        if (owner != null) {
-                            if (type.equals("Savings")) {
-                                addAccount(new SavingsAccount(owner, infos[3], Double.parseDouble(infos[4]), Double.parseDouble(infos[5]), 100000));
+                        String accountNumber = infos[3];
+                        if (accountMap.containsKey(accountNumber)) {
+                            out.println("실패: 이미 존재하는 계좌번호입니다.");
+                            log("[계좌 생성 실패] 중복된 계좌번호 시도: " + accountNumber);
+                        }else{
+                            if (owner != null) {
+                                if (type.equals("Savings")) {
+                                    addAccount(new SavingsAccount(owner, infos[3], Double.parseDouble(infos[4]), Double.parseDouble(infos[5]), 100000));
+                                } else {
+                                    SavingsAccount linked = (SavingsAccount) accountMap.get(infos[5]);
+                                    addAccount(new CheckingAccount(owner, infos[3], Double.parseDouble(infos[4]), linked));
+                                }
+                                out.println("계좌생성완료");
                             } else {
-                                SavingsAccount linked = (SavingsAccount) accountMap.get(infos[5]);
-                                addAccount(new CheckingAccount(owner, infos[3], Double.parseDouble(infos[4]), linked));
+                                out.println("고객ID없음");
                             }
-                            out.println("계좌생성완료");
-                        } else {
-                            out.println("고객ID없음");
                         }
-                    }
+                }
                     else if (cmd.equals("DELETE_CUSTOMER")) {
                         String targetId = infos[1];
                         Customer c = customerMap.get(targetId);
